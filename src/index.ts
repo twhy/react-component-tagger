@@ -42,20 +42,12 @@ export function reactComponentTagger({
             const end = `${parent.loc?.end.line ?? 0}:${
               parent.loc?.end.column ?? 0
             }:${parent.loc?.end.index ?? 0}`;
-            const open = {
-              start: `${node.loc?.start.line ?? 0}:${
-                node.loc?.start.column ?? 0
-              }:${node.loc?.start.index ?? 0}`,
-              end: `${node.loc?.end.line ?? 0}:${node.loc?.end.column ?? 0}:${
-                node.loc?.end.index ?? 0
-              }`,
-            };
             if (exclude.includes(name)) {
               return;
             }
             magic.appendLeft(
               node.name.end ?? 0,
-              ` data-component-start="${start}" data-component-end="${end}" data-component-opening-start="${open.start}" data-component-opening-end="${open.end}" data-component-path="${filepath}" data-component-file="${filename}" data-component-name="${name}"`,
+              ` data-component-start="${start}" data-component-end="${end}" data-component-path="${filepath}" data-component-file="${filename}" data-component-name="${name}"`,
             );
           },
         });
