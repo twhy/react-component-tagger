@@ -1,6 +1,6 @@
 {
   "name": "react-component-tagger",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Vite plugin for react component tagging",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

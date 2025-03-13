@@ -2,8 +2,11 @@ import path from "node:path";
 import { parse } from "@babel/parser";
 import { traverse } from "@babel/core";
 import {
+  isJSXAttribute,
+  isJSXExpressionContainer,
   isJSXIdentifier,
   isJSXMemberExpression,
+  isStringLiteral,
   type JSXIdentifier,
   type JSXMemberExpression,
   type JSXNamespacedName,
@@ -36,18 +39,50 @@ export function reactComponentTagger({
         traverse(ast, {
           JSXOpeningElement({ node, parent }) {
             const name = getComponentName(node.name);
+            if (exclude.includes(name)) {
+              return;
+            }
             const start = `${parent.loc?.start.line ?? 0}:${
               parent.loc?.start.column ?? 0
             }:${parent.loc?.start.index ?? 0}`;
             const end = `${parent.loc?.end.line ?? 0}:${
               parent.loc?.end.column ?? 0
             }:${parent.loc?.end.index ?? 0}`;
-            if (exclude.includes(name)) {
-              return;
-            }
+
+            const attributes = node.attributes.reduce((data, attr) => {
+              if (isJSXAttribute(attr) && isJSXIdentifier(attr.name)) {
+                if (attr.name.name === "key") {
+                  data.push('data-component-key="true"');
+                } else if (attr.name.name === "src") {
+                  if (isStringLiteral(attr.value)) {
+                    data.push(`data-component-src="${attr.value.value}"`);
+                  } else if (
+                    isJSXExpressionContainer(attr.value) &&
+                    isStringLiteral(attr.value.expression)
+                  ) {
+                    data.push(
+                      `data-component-src="${attr.value.expression.value}"`,
+                    );
+                  }
+                } else if (attr.name.name === "className") {
+                  if (isStringLiteral(attr.value)) {
+                    data.push(`data-component-class="${attr.value.value}"`);
+                  } else if (
+                    isJSXExpressionContainer(attr.value) &&
+                    isStringLiteral(attr.value.expression)
+                  ) {
+                    data.push(
+                      `data-component-class="${attr.value.expression.value}"`,
+                    );
+                  }
+                }
+              }
+              return data;
+            }, [] as string[]).join(" ");
+
             magic.appendLeft(
               node.name.end ?? 0,
-              ` data-component-start="${start}" data-component-end="${end}" data-component-path="${filepath}" data-component-file="${filename}" data-component-name="${name}"`,
+              ` ${attributes} data-component-start="${start}" data-component-end="${end}" data-component-path="${filepath}" data-component-file="${filename}" data-component-name="${name}"`,
             );
           },
         });
@@ -69,8 +104,10 @@ function getComponentName(
   return isJSXIdentifier(name)
     ? name.name
     : isJSXMemberExpression(name)
-      ? `${getComponentName(name.object)}.${getComponentName(
-          name.property as JSXIdentifier,
-        )}`
-      : "";
+    ? `${getComponentName(name.object)}.${
+      getComponentName(
+        name.property as JSXIdentifier,
+      )
+    }`
+    : "";
 }
