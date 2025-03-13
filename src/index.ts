@@ -1,11 +1,14 @@
 import path from "node:path";
 import { parse } from "@babel/parser";
-import { traverse } from "@babel/core";
+import { type Node, type NodePath, traverse } from "@babel/core";
 import {
+  isCallExpression,
+  isIdentifier,
   isJSXAttribute,
   isJSXExpressionContainer,
   isJSXIdentifier,
   isJSXMemberExpression,
+  isMemberExpression,
   isStringLiteral,
   type JSXIdentifier,
   type JSXMemberExpression,
@@ -37,7 +40,7 @@ export function reactComponentTagger({
         });
         const magic = new MagicString(code);
         traverse(ast, {
-          JSXOpeningElement({ node, parent }) {
+          JSXOpeningElement({ node, parent, parentPath }) {
             const name = getComponentName(node.name);
             if (exclude.includes(name)) {
               return;
@@ -52,7 +55,27 @@ export function reactComponentTagger({
             const attributes = node.attributes.reduce((data, attr) => {
               if (isJSXAttribute(attr) && isJSXIdentifier(attr.name)) {
                 if (attr.name.name === "key") {
-                  data.push('data-component-key="true"');
+                  for (
+                    let currentPath: NodePath<Node> | null = parentPath;
+                    currentPath;
+                    currentPath = currentPath.parentPath
+                  ) {
+                    if (isMapCall(currentPath.node)) {
+                      data.push(
+                        `data-component-map-start="${
+                          currentPath.node.loc?.start.line ?? 0
+                        }:${currentPath.node.loc?.start.column ?? 0}:${
+                          currentPath.node.loc?.start.index ?? 0
+                        }"`,
+                        `data-component-map-end="${
+                          currentPath.node.loc?.end.line ?? 0
+                        }:${currentPath.node.loc?.end.column ?? 0}:${
+                          currentPath.node.loc?.end.index ?? 0
+                        }"`,
+                      );
+                      break;
+                    }
+                  }
                 } else if (attr.name.name === "src") {
                   if (isStringLiteral(attr.value)) {
                     data.push(`data-component-src="${attr.value.value}"`);
@@ -96,6 +119,15 @@ export function reactComponentTagger({
       }
     },
   };
+}
+
+function isMapCall(node: Node) {
+  return (
+    isCallExpression(node) &&
+    isMemberExpression(node.callee) &&
+    isIdentifier(node.callee.property) &&
+    node.callee.property.name === "map"
+  );
 }
 
 function getComponentName(
