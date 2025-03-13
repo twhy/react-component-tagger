@@ -105,7 +105,7 @@ export function reactComponentTagger({
 
             magic.appendLeft(
               node.name.end ?? 0,
-              ` ${attributes} data-component-start="${start}" data-component-end="${end}" data-component-path="${filepath}" data-component-file="${filename}" data-component-name="${name}"`,
+              ` data-component-start="${start}" data-component-end="${end}" data-component-path="${filepath}" data-component-file="${filename}" data-component-name="${name}" ${attributes} `,
             );
           },
         });
